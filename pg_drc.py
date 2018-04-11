@@ -90,7 +90,7 @@ LAG_THRESHOLD = int(configuration['lag_threshold'])
 # Log params:
 LOG_DIR = configuration['log_dir']
 LOG_PREF = configuration['log_pref']
- 
+
 # Connection params:
 DB_CONTYPE = 'u_socket'
 DB_HOST = ''
@@ -181,7 +181,6 @@ class ReplicationDelay(db._DatBase):
         self.do_query("select pg_last_xact_replay_timestamp()")
         return self.cursor.fetchone()
 
-
     def get_current_time_lag_min(self):
         """gets a current time lag of replaying wal files on a slave
         """
@@ -215,7 +214,6 @@ def main():
                         level=logging.INFO)
     log = logging.getLogger('index_rebuilder')
 
-
     replication = ReplicationDelay(DB_NAME)
     replication.set_log(log)
     replication.get_connect(con_type=DB_CONTYPE, host=DB_HOST,
@@ -239,9 +237,10 @@ def main():
     if args.report:
         msg = "%s - delayed replication status\n"\
               "recovery_min_apply_delay: %s min\n"\
-              "current timelag is: %s min\ndiff: %s" % (HOSTNAME,
-            replication.apply_delay, replication.current_time_lag_min,
-            replication.delay_diff)
+              "current timelag is: %s min\n"\
+              "diff: %s" % (HOSTNAME, replication.apply_delay,
+                            replication.current_time_lag_min,
+                            replication.delay_diff)
         print(msg)
         log.info("recovery_min_apply_delay: %s min, "
                  "current timelag is: %s min, "
