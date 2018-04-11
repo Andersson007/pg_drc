@@ -1,0 +1,79 @@
+# This is the pg_drc.py configuration file.
+#
+# Example configuration section:
+#
+# # Logging params:
+# log_dir = /tmp
+# log_pref = pg_drc_log
+#
+# # File for saving of temporary information:
+# xact_timestamp_file = /var/lib/pgsql/xact_timestamp.tmp
+#
+# # Path to the recovery.conf of a PostgreSQL slave server:
+# recovery_conf = /var/lib/pgsql/9.4/data/recovery.conf
+#
+# Allowable lag of a slave server (must be a negative number):
+# lag_threshold = -60
+#
+# Database connection params:
+# db_host = localhost
+# db_port = 5432
+# db_name = test
+# db_user = postgres
+#
+# # Allow mail notifications (set not null):
+# mail_allow  = 1
+#
+# # Mail subject:
+# mail_subject = hostname.lan: delay repl status
+#
+# # Mail srv conn params:
+# smtp_srv = smtp.gmail.com
+# smtp_port = 587
+#
+# # Mail cred (Send mail by this mail account):
+# smtp_acc = my.mail.acc@gmail.com
+# smtp_pass = MyPassHere
+#
+# # Recepient:
+# mail_recipient = my.monitoring.mail@somesrv.com
+#
+# # Sender field content:
+# mail_sender = root@hostname.lan
+
+# Logging params:
+log_dir = /tmp
+log_pref = pg_drc_log
+
+# Database connection params:
+db_host = localhost
+db_port = 5432
+db_name = postgres
+db_user = postgres
+db_passwd =
+
+# File for saving temporary information:
+xact_timestamp_file = /var/lib/pgsql/xact_timestamp.tmp
+
+# Allowable lag of a slave server (must be a negative number):
+lag_threshold = -60
+
+# Allow mail notifications (set not null):
+mail_allow  = 0
+
+# Mail subject:
+mail_subject = somesrv.lan: delay repl status
+
+# Mail srv conn params:
+smtp_srv = smtp.gmail.com
+smtp_port = 587
+
+# Mail cred (Send mail by this mail account):
+smtp_acc = report.mycompany@gmail.com
+smtp_pass = PasswdHere
+
+# Recepient:
+mail_recipient = my.account@mydomain.com, my.collegue.account@mydomain.com
+
+# Sender field:
+mail_sender = root@somesrv
