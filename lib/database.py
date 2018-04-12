@@ -1,3 +1,7 @@
+# database - The library for PostgreSQL database management
+# Author: Andrey Klychkov <aaklychkov@mail.ru>
+# Data: 12-04-2018
+
 import datetime
 import logging
 import sys
@@ -16,7 +20,15 @@ except ImportError as e:
     print(e, "Hint: use pip3 install pyyaml")
     sys.exit(1)
 
-# Max lenght of a database object name:
+__version__ = '1.1.0'
+
+INF = 0
+ERR = 1
+WRN = 2
+DEB = 3
+CRT = 4
+
+# Max length of a database object name:
 MAX_NAME_LEN = 63
 
 # Loading sql query templates:
@@ -33,6 +45,39 @@ class _DatBase(object):
         self.set_dbname(dbname)
         self.log = None
         self.lock_query_timeout = '0'
+        self.verbosity = False
+
+    def logger(self, msg, lvl=INF):
+        if self.log:
+            if lvl == 0:
+                self.log.info(msg)
+            elif lvl == 1:
+                self.log.error(msg)
+            elif lvl == 2:
+                self.log.warning(msg)
+            elif lvl == 3:
+                self.log.debug(msg)
+            elif lvl == 4:
+                self.log.critical(msg)
+            else:
+                raise ValueError('_DatBase.logger(): '
+                                 'unrecognized log message level '
+                                 'code "%s"' % lvl)
+                sys.exit(1)
+        else:
+            pass
+
+        if self.verbosity:
+            print('%s : %s' % (datetime.datetime.now(), msg))
+
+    def set_verbosity(self, boolean):
+        if boolean is True:
+            self.verbosity = True
+        elif boolean is False:
+            self.verbosity = False
+        else:
+            raise ValueError('_DatBase.set_verbosity(): '
+                             'expects boolean argument')
 
     def set_name(self, name):
         err = self.__check_name(name)
@@ -74,7 +119,7 @@ class _DatBase(object):
         if arg_type is logging.Logger:
             self.log = log
         else:
-            err = "_DatBase.set_log() requeres "\
+            err = "_DatBase.set_log() requires "\
                   "an argument as an object of the logging.Logger class, "\
                   "passed %s" % arg_type
             raise TypeError(err)
@@ -88,9 +133,9 @@ class _DatBase(object):
 
     def get_connect(self, con_type='u_socket', host='', pg_port='5432',
                     user='postgres', passwd='', auto_commit=True):
-        if not self.log:
-            print("Error, attribute 'DatBase.log' is not defined")
-            sys.exit(1)
+        #if not self.log:
+        #    print("Error, attribute 'DatBase.log' is not defined")
+        #    sys.exit(1)
 
         if con_type == 'u_socket':
             if user == 'postgres':
@@ -114,19 +159,19 @@ class _DatBase(object):
             self.connect.set_session(autocommit=auto_commit)
             self.cursor = self.connect.cursor()
             self.do_query('SELECT version();', err_exit=True)
-            self.log.info('Connection to database %s established'
-                          % self.dbname)
+            self.logger('Connection to database %s established'
+                        % self.dbname)
             return self.connect
         except psycopg2.DatabaseError as e:
             print(e)
-            self.log.error(e)
+            self.logger(e, ERR)
             return False
 
     def do_query(self, query, err_exit=False):
         try:
             return self.cursor.execute(query)
         except psycopg2.DatabaseError as e:
-            self.log.error(e)
+            self.logger(e, ERR)
             if err_exit:
                 sys.exit(1)
             return False
@@ -142,7 +187,7 @@ class _DatBase(object):
             return False
         except psycopg2.DatabaseError as e:
             print(e)
-            self.log.error(e)
+            self.logger(e, ERR)
             return False
 
     def set_statement_timeout(self, timeout):
@@ -152,7 +197,7 @@ class _DatBase(object):
         try:
             self.connect.close()
         except psycopg2.DatabaseError as e:
-            self.log.error(e)
+            self.logger(e, ERR)
 
 
 class DatBaseObject(_DatBase):
@@ -243,7 +288,7 @@ class _Relation(_DatBase):
         self.relsize = 0
 
     def check_relation(self, name=""):
-        """Check relation existance"""
+        """Check relation existence"""
         if not name:
             relname = self.name
         else:
@@ -297,7 +342,7 @@ class Index(_Relation):
         self.do_query(sql_templates['GET_IDXDEF_SQL'] % self.name)
         self.idef = self.cursor.fetchone()[0]
         if 'UNIQUE' in self.idef:
-            self.log.error('It\'s UNIQUE or PRIMARY KEY. Exit')
+            self.logger('It\'s UNIQUE or PRIMARY KEY. Exit', ERR)
             return False
         return True
 
@@ -372,28 +417,28 @@ class Index(_Relation):
         relkind = self.get_relkind()
         if not relkind:
             msg = '%s: relation does not exist. Exit' % self.name
-            self.log.error(msg)
+            self.logger(msg, ERR)
             return False
 
         if relkind != 'i':
             msg = '%s: relation is not an index. Exit' % self.name
-            self.log.error(msg)
+            self.logger(msg, ERR)
             return False
 
         # For size difference after/before statistics:
         prev_size = self.get_relsize()
-        self.log.info('Start to rebuild of %s, '
-                      'current size: %s bytes' % (self.name, prev_size))
+        self.logger('Start to rebuild of %s, '
+                    'current size: %s bytes' % (self.name, prev_size))
 
         #
         # 1. Check validity of a current index
         #
         if not self.check_validity():
             msg = '%s: index is invalid. Check it' % self.name
-            self.log.warning(msg)
+            self.logger(msg, WRN)
             return False
         else:
-            self.log.info('Index is valid')
+            self.logger('Index is valid')
 
         #
         # 2. Get current index definition
@@ -420,7 +465,7 @@ class Index(_Relation):
             else:
                 msg = '%s: relation exists now. Exit' % self.__tmp_name
 
-            self.log.error(msg)
+            self.logger(msg, ERR)
             return False
 
         #
@@ -431,24 +476,24 @@ class Index(_Relation):
         #
         # 6. Create a new index
         #
-        self.log.info('Try: %s' % self.__creat_new_cmd)
+        self.logger('Try: %s' % self.__creat_new_cmd)
         if self.create_new():
-            self.log.info('Creation has been complited')
+            self.logger('Creation has been completed')
         else:
             msg = '%s: creation FAILED' % self.__tmp_name
-            self.log.error(msg)
+            self.logger(msg, ERR)
             return False
 
         #
         # 7. Add a comment on a new index if it exists on an old index
         #
         if self.icomment:
-            self.log.info("Add comment: '%s'" % self.icomment)
+            self.logger("Add comment: '%s'" % self.icomment)
             if self.add_comment(self.__tmp_name, self.icomment):
-                self.log.info('Comment has been added')
+                self.logger('Comment has been added')
             else:
                 msg = '%s: comment has NOT been added' % self.__tmp_name
-                self.log.warning(msg)
+                self.logger(msg, WRN)
 
         #
         # 8. Check validity of a new index
@@ -457,33 +502,33 @@ class Index(_Relation):
             # If the index is invalid, exit the function
             msg = 'New index %s is invalid. ' % self.__tmp_name
             msg += 'Check and drop it manually'
-            self.log.warning(msg)
+            self.logger(msg, WRN)
             return False
         else:
-            self.log.info('New index %s is valid, continue' % self.__tmp_name)
+            self.logger('New index %s is valid, continue' % self.__tmp_name)
 
         #
         # 9. Drop an old index
         #
-        self.log.info('Try to drop index %s' % self.name)
+        self.logger('Try to drop index %s' % self.name)
 
         # Index dropping / altering locks a table,
         # therefore it needs to set allowable statement timeout
         # for this action in order to prevent queues of queries:
         if self.set_statement_timeout(self.lock_query_timeo):
-            self.log.info("Set statement timeout '%s': success" %
-                          self.lock_query_timeo)
+            self.logger("Set statement timeout '%s': success" %
+                        self.lock_query_timeo)
         else:
-            self.log.info("Set statement timeout '%s': failure" %
-                          self.lock_query_timeo, ERR)
+            self.logger("Set statement timeout '%s': failure" %
+                        self.lock_query_timeo, ERR)
 
         if self.drop(self.name):
-            self.log.info('Dropping done')
+            self.logger('Dropping done')
         else:
             # If index has not been dropped, exit the function:
             msg = '%s: rebuilding FAILED, '\
                   'index is NOT dropped' % self.name
-            self.log.warning(msg)
+            self.logger(msg, WARN)
             return False
 
         #
@@ -491,26 +536,26 @@ class Index(_Relation):
         #
         # If the previous step (dropping of a current index)
         # was done successfully,
-        # rename the new index to a persistant name
+        # rename the new index to a persistent name
         # (as the name of the dropped index)
-        self.log.info('Try to rename index %s to %s' % (
-                      self.__tmp_name, self.name))
+        self.logger('Try to rename index %s to %s' % (
+                    self.__tmp_name, self.name))
         if self.rename(self.__tmp_name, self.name):
-            self.log.info('Renaming is done')
+            self.logger('Renaming is done')
         else:
             msg = '%s: renaming FAILED. Do it manually' % self.__tmp_name
-            self.log.warning(msg)
+            self.logger(msg, WRN)
             return False
 
         #
         # Reset a statement timeout that was established previously:
         #
         if self.set_statement_timeout('0'):
-            self.log.info("Reset statement timeout to '0': success")
+            self.logger("Reset statement timeout to '0': success")
         else:
-            self.log.info("Reset statement timeout to '0': failure", ERR)
+            self.logger("Reset statement timeout to '0': failure", ERR)
 
-        # Make time execution statictics and return it:
+        # Make time execution statistics and return it:
         fin_size = self.get_relsize()
         diff = prev_size - fin_size
 
@@ -519,6 +564,6 @@ class Index(_Relation):
         stat = '%s: done. Size (in bytes): prev %s, '\
                'fin %s, diff %s, exec time %s' % (self.name, prev_size,
                                                   fin_size, diff, exec_time)
-        self.log.info(stat)
+        self.logger(stat)
 
         return stat

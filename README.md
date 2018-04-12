@@ -69,7 +69,7 @@ recovery_min_apply_delay: 360 min
 current timelag is: 360 min
 diff: 0
 ```
-Example of a warning nitification (runned with --check option)
+Example of a warning notification (run with --check option)
 ```
 Lag (789) more than LAG_THRESHOLD (-60)
 recovery_min_apply_delay is 720
