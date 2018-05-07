@@ -5,9 +5,9 @@ Author: Andrey Klychkov aaklychkov@mail.ru
 
 Licence: Copyleft free software
 
-Version: 1.3.3
+Version: 1.3.4
 
-Date: 11-04-2018
+Date: 07-05-2018
 
 ### Description:
 The utility gets the last_xact_replay_timestamp value from a specified database,
